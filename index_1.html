@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e8553d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Morsel">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Morsel meal tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE: friendly, quick, a pocket companion; light touch like a hydration buddy app
+   IDEA: a dinner plate; the day fills a plate ring as you eat
+   PICTURE: big calorie ring (progress to target, or macro split) with the number inside
+   COLOUR and TYPE: warm white, tomato for calories, grape protein, honey carbs, mint fat; Nunito rounded
+   LAYOUT: phone first single column, date bar, ring hero, macro bars, meal cards, floating add button, bottom nav */
+:root{color-scheme:light dark;
+--bg:light-dark(#fff8f2,#1c1411);--card:light-dark(#ffffff,#29201b);--ink:light-dark(#2b1d17,#f8ede5);
+--mute:light-dark(#8c766b,#b5a196);--line:light-dark(#f1e3d7,#3b2e28);--soft:light-dark(#fdeee4,#33261f);
+--kc:#e8553d;--pro:#7b5cd6;--carb:#eea21b;--fat:#1f9e89;--danger:#c4352a}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 Nunito,system-ui,-apple-system,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent;padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--kc);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 16px 0}
+.view{display:none}.view.on{display:block}
+h1,h2,h3{margin:0;line-height:1.1}
+h2{font-size:32px;font-weight:900;margin:8px 0 14px}
+.datebar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.datebar .t{flex:1;text-align:center}
+.datebar h1{font-size:30px;font-weight:900}
+.datebar small{color:var(--mute);font-weight:700}
+.round{width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--line);font-size:22px;font-weight:900;display:grid;place-items:center}
+.hero{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:20px;display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr);gap:20px;align-items:center}
+.ring{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:var(--line);transition:background .4s}
+.ring>div{width:76%;aspect-ratio:1;border-radius:50%;background:var(--card);display:grid;place-items:center;text-align:center;align-content:center}
+#kcal{font-size:clamp(34px,10vw,46px);font-weight:900;line-height:1}
+.ring small{color:var(--mute);font-weight:700;font-size:13px}
+#kgoal{font-weight:800;margin-bottom:12px}
+.mrow{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin:10px 0}
+.ml{font-weight:800;display:flex;align-items:center;gap:6px}
+.ml i{width:10px;height:10px;border-radius:50%}
+.mv{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{grid-column:1/-1;height:9px;border-radius:9px;background:var(--line);overflow:hidden}
+.bar b{display:block;height:100%;border-radius:9px;transition:width .4s}
+.meal{background:var(--card);border:1px solid var(--line);border-radius:22px;margin-top:14px;overflow:hidden}
+.meal header{display:flex;align-items:center;gap:8px;padding:10px 10px 10px 18px}
+.meal h3{font-size:19px;font-weight:900;flex:1}
+.mk{color:var(--mute);font-weight:800;font-variant-numeric:tabular-nums}
+.iconb{width:44px;height:44px;border-radius:50%;background:var(--soft);color:var(--kc);font-size:26px;font-weight:900;line-height:1}
+.ent,.res{display:flex;width:100%;text-align:left;gap:12px;align-items:center;padding:11px 18px;border-top:1px solid var(--line);min-height:56px}
+.en,.rn{flex:1;font-weight:800;overflow-wrap:anywhere}
+.en small,.rn small,.ek small,.rk small{display:block;color:var(--mute);font-weight:600;font-size:13px}
+.ek,.rk{text-align:right;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+.copy{display:block;width:100%;padding:12px 18px;border-top:1px dashed var(--line);color:var(--kc);font-weight:800;text-align:left}
+.empty{color:var(--mute);text-align:center;padding:22px 18px;font-weight:700}
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom));background:var(--kc);color:#fff;font-weight:900;font-size:18px;padding:15px 28px;border-radius:40px;box-shadow:0 8px 24px rgba(232,85,61,.35);z-index:10}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:9}
+nav button{flex:0 1 140px;padding:10px 0 12px;font-weight:800;color:var(--mute);font-size:14px;display:grid;justify-items:center;gap:2px}
+nav button svg{width:24px;height:24px}
+nav button.on{color:var(--kc)}
+.ov{position:fixed;inset:0;background:var(--bg);z-index:30;display:none;flex-direction:column}
+.ov.on{display:flex}
+.ov.pop{background:rgba(20,10,5,.45);justify-content:flex-end}
+.ovh{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;max-width:560px;width:100%;margin:0 auto}
+.ovh h3{flex:1;font-size:22px;font-weight:900}
+.ovb{flex:1;overflow-y:auto;max-width:560px;width:100%;margin:0 auto;padding:0 16px calc(24px + env(safe-area-inset-bottom))}
+.panel{background:var(--card);border-radius:28px 28px 0 0;max-width:560px;width:100%;margin:0 auto;max-height:92vh;overflow-y:auto;padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
+#sheet{z-index:40}#amt{z-index:50}#quick{z-index:55}#pe{z-index:35}#re{z-index:32}
+.sform{display:flex;gap:8px}
+input[type=text],input[type=search],input[type=number],input:not([type]),select{width:100%;height:48px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);padding:0 14px;font-size:16px;font-weight:700}
+input:focus,select:focus{border-color:var(--kc);outline:none}
+.btn{height:48px;padding:0 18px;border-radius:14px;background:var(--kc);color:#fff;font-weight:900;white-space:nowrap}
+.btn.ghost{background:var(--soft);color:var(--ink)}
+.btn.wide{width:100%;margin-top:10px}
+.btn.del{background:none;color:var(--danger)}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.row4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+label{display:block;font-weight:800;font-size:14px;margin:12px 0 5px}
+.tools{display:flex;gap:8px;margin:10px 0 4px;flex-wrap:wrap}
+.chip{height:40px;padding:0 14px;border-radius:20px;background:var(--soft);font-weight:800;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.chip.on{background:var(--kc);color:#fff}
+.grp{font-size:13px;font-weight:900;color:var(--mute);margin:18px 2px 6px}
+.list{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.list .res:first-child{border-top:0}
+.tag{display:inline-block;font-size:11px;font-weight:900;padding:1px 7px;border-radius:8px;background:var(--soft);color:var(--mute);margin-left:4px;vertical-align:2px}
+.hint{color:var(--mute);font-weight:600;font-size:14px;margin:10px 2px}
+.big{display:flex;align-items:baseline;gap:8px;margin:16px 0 4px}
+.big b{font-size:44px;font-weight:900;color:var(--kc);line-height:1}
+.pcf{display:flex;gap:14px;font-weight:800;flex-wrap:wrap}
+.pcf span{display:flex;align-items:center;gap:5px}
+.pcf i{width:9px;height:9px;border-radius:50%}
+.seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.seg button{height:42px;border-radius:12px;background:var(--soft);font-weight:800;font-size:14px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.ing{display:flex;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.ing:first-child{border-top:0}
+.ing button.n{flex:1;text-align:left;font-weight:800}
+.ing small{display:block;color:var(--mute);font-weight:600}
+.x{width:40px;height:40px;border-radius:50%;background:var(--soft);font-weight:900;color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:16px 18px;margin-bottom:14px}
+.card h3{font-size:19px;font-weight:900;margin-bottom:4px}
+.card p{margin:4px 0;color:var(--mute);font-weight:600;font-size:14px}
+a{color:var(--kc);font-weight:800}
+#toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:16px;font-weight:800;opacity:0;pointer-events:none;transition:.25s;z-index:80;display:flex;gap:14px;align-items:center;max-width:92vw}
+#toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#toast button{color:var(--kc);font-weight:900}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid var(--line);border-top-color:var(--kc);border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-3px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media(max-width:380px){.hero{grid-template-columns:1fr}.ring{max-width:190px;margin:0 auto;width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="view on" id="v-today">
+    <div class="datebar">
+      <button class="round" id="prev" aria-label="Previous day">&#8249;</button>
+      <div class="t"><h1 id="dlabel">Today</h1><small id="dsub"></small></div>
+      <button class="round" id="next" aria-label="Next day">&#8250;</button>
+    </div>
+    <div class="hero">
+      <div class="ring" id="ring"><div><span id="kcal">0</span><small>kcal</small></div></div>
+      <div><div id="kgoal"></div><div id="mrows"></div></div>
+    </div>
+    <div id="meals"></div>
+  </section>
+
+  <section class="view" id="v-foods">
+    <h2>My Foods</h2>
+    <div class="row2">
+      <button class="btn" id="newprod">New product</button>
+      <button class="btn ghost" id="newrec">New homemade</button>
+    </div>
+    <div class="tools" id="ffilter">
+      <button class="chip on" data-k="all">All</button>
+      <button class="chip" data-k="product">Products</button>
+      <button class="chip" data-k="homemade">Homemade</button>
+    </div>
+    <input type="search" id="fq" placeholder="Filter my foods" aria-label="Filter my foods" style="margin-top:6px">
+    <div id="flist" style="margin-top:12px"></div>
+  </section>
+
+  <section class="view" id="v-settings">
+    <h2>Settings</h2>
+    <div class="card">
+      <h3>Daily targets</h3>
+      <p>Optional. Leave blank to just track.</p>
+      <div class="row2"><div><label for="gk">Calories</label><input id="gk" type="number" inputmode="numeric"></div><div><label for="gp">Protein (g)</label><input id="gp" type="number" inputmode="numeric"></div></div>
+      <div class="row2"><div><label for="gc">Carbs (g)</label><input id="gc" type="number" inputmode="numeric"></div><div><label for="gf">Fat (g)</label><input id="gf" type="number" inputmode="numeric"></div></div>
+    </div>
+    <div class="card">
+      <h3>USDA food database key</h3>
+      <p>Search works out of the box with a shared demo key that allows about 30 searches an hour. A free personal key removes that limit: <a href="https://fdc.nal.usda.gov/api-key-signup" target="_blank" rel="noopener">get one here</a>, then paste it below.</p>
+      <label for="ukey">Your key</label><input id="ukey" type="text" autocomplete="off" spellcheck="false" placeholder="Using the demo key">
+    </div>
+    <div class="card">
+      <h3>Backup</h3>
+      <p id="bstat"></p>
+      <div class="row2" style="margin-top:10px"><button class="btn" id="bdl">Download backup</button><button class="btn ghost" id="bcp">Copy backup</button></div>
+      <label for="bin" class="btn ghost wide" style="display:grid;place-items:center;margin-top:10px;font-size:16px;cursor:pointer">Restore from a backup file</label>
+      <input type="file" id="bin" accept=".json,application/json" hidden>
+    </div>
+    <p class="hint">Nutrition data from USDA FoodData Central and Open Food Facts. Everything you log stays on this device.</p>
+  </section>
+</div>
+
+<button class="fab" id="fab">+ Add food</button>
+<nav>
+  <button data-v="today" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></svg>Today</button>
+  <button data-v="foods"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>My Foods</button>
+  <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Settings</button>
+</nav>
+
+<!-- search sheet -->
+<div class="ov" id="sheet">
+  <div class="ovh"><h3 id="stitle">Add food</h3><button class="round" data-close="sheet" aria-label="Close">&#215;</button></div>
+  <div class="ovb">
+    <form class="sform" id="sform"><input type="search" id="q" placeholder="Search foods or type a barcode" aria-label="Search foods" autocomplete="off" enterkeyhint="search"><button class="btn" type="submit">Search</button></form>
+    <div class="tools">
+      <label class="chip" style="margin:0;cursor:pointer" for="scan"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M8 8v8M11 8v8M14 8v8M17 8v8"/></svg>Scan barcode</label>
+      <input type="file" id="scan" accept="image/*" capture="environment" hidden>
+      <button class="chip" id="quickbtn">Quick add</button>
+    </div>
+    <div id="local"></div>
+    <div id="dbres"></div>
+  </div>
+</div>
+
+<!-- amount picker -->
+<div class="ov pop" id="amt"><div class="panel" id="amtp"></div></div>
+
+<!-- quick add -->
+<div class="ov pop" id="quick"><div class="panel">
+  <div class="ovh" style="padding:0 0 6px"><h3 id="qtitle">Quick add</h3><button class="round" data-close="quick" aria-label="Close">&#215;</button></div>
+  <label for="qn">Name</label><input id="qn" type="text" placeholder="Coffee with oat milk">
+  <div class="row4"><div><label for="qk">kcal</label><input id="qk" type="number" inputmode="decimal"></div><div><label for="qp">Protein</label><input id="qp" type="number" inputmode="decimal"></div><div><label for="qc">Carbs</label><input id="qc" type="number" inputmode="decimal"></div><div><label for="qf">Fat</label><input id="qf" type="number" inputmode="decimal"></div></div>
+  <button class="btn wide" id="qgo">Add</button>
+</div></div>
+
+<!-- product editor -->
+<div class="ov" id="pe">
+  <div class="ovh"><h3 id="petitle">New product</h3><button class="round" data-close="pe" aria-label="Close">&#215;</button></div>
+  <div class="ovb">
+    <label for="pn">Name</label><input id="pn" type="text" placeholder="Protein bar, chocolate">
+    <label for="pb">Brand (optional)</label><input id="pb" type="text">
+    <div class="row2"><div><label for="ps">Serving</label><input id="ps" type="text" placeholder="1 bar"></div><div><label for="pg">Serving weight in g (optional)</label><input id="pg" type="number" inputmode="decimal"></div></div>
+    <p class="hint">Copy these from the label, per serving.</p>
+    <div class="row4"><div><label for="pk">kcal</label><input id="pk" type="number" inputmode="decimal"></div><div><label for="pp">Protein</label><input id="pp" type="number" inputmode="decimal"></div><div><label for="pc">Carbs</label><input id="pc" type="number" inputmode="decimal"></div><div><label for="pf">Fat</label><input id="pf" type="number" inputmode="decimal"></div></div>
+    <button class="btn wide" id="psave">Save to My Foods</button>
+    <button class="btn del wide" id="pdel">Delete</button>
+  </div>
+</div>
+
+<!-- recipe editor -->
+<div class="ov" id="re">
+  <div class="ovh"><h3 id="retitle">New homemade</h3><button class="round" data-close="re" aria-label="Close">&#215;</button></div>
+  <div class="ovb">
+    <label for="rn">Name</label><input id="rn" type="text" placeholder="My turkey chili">
+    <div class="row2"><div><label for="rs">Makes how many servings</label><input id="rs" type="number" inputmode="decimal" value="1"></div><div><label for="rg">Total cooked weight in g (optional)</label><input id="rg" type="number" inputmode="decimal"></div></div>
+    <div class="grp">INGREDIENTS</div>
+    <div class="list" id="ringr"></div>
+    <button class="btn ghost wide" id="raddi">+ Add ingredient</button>
+    <div class="card" style="margin-top:14px" id="rtot"></div>
+    <button class="btn wide" id="rsave">Save to My Foods</button>
+    <button class="btn del wide" id="rdel">Delete</button>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const r0=x=>Math.round(x||0);
+const r1=x=>Math.round((x||0)*10)/10;
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:0};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const ymd=d=>{const z=new Date(d);z.setMinutes(z.getMinutes()-z.getTimezoneOffset());return z.toISOString().slice(0,10)};
+const shift=(s,n)=>{const d=new Date(s+'T12:00');d.setDate(d.getDate()+n);return ymd(d)};
+const MEALS=['Breakfast','Lunch','Dinner','Snacks'];
+const KEY='morsel.v1';
+const blank=()=>({foods:[],log:[],goals:{k:0,p:0,c:0,f:0},usdaKey:''});
+let S=blank();
+try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d)S=Object.assign(blank(),d)}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let day=ymd(new Date());
+
+const unitOf=(f,u)=>f.units[u]||f.units[0];
+const macros=(f,qty,u)=>{const m=num(qty)*unitOf(f,u).m;return{k:f.n.k*m,p:f.n.p*m,c:f.n.c*m,f:f.n.f*m}};
+const sum=a=>a.reduce((t,x)=>({k:t.k+x.k,p:t.p+x.p,c:t.c+x.c,f:t.f+x.f}),{k:0,p:0,c:0,f:0});
+const eM=e=>macros(e.food,e.qty,e.u);
+const fq=q=>String(r1(q));
+const qtyText=(f,q,u)=>{const l=unitOf(f,u).l;if(l==='entry')return 'quick add';if(['g','oz','ml'].includes(l))return fq(q)+' '+l;return num(q)===1?l:fq(q)+' × '+l};
+const autoMeal=()=>{const h=new Date().getHours();return h<11?0:h<15?1:h<17?3:h<22?2:3};
+const SRC={usda:'USDA',off:'Open Food Facts',mine:'Mine'};
+const snap=f=>JSON.parse(JSON.stringify({name:f.name,brand:f.brand||'',kind:f.kind,src:f.src,id:f.id,srcId:f.srcId,n:f.n,units:f.units}));
+const pcf=m=>`<div class="pcf"><span><i style="background:var(--pro)"></i>P ${r0(m.p)} g</span><span><i style="background:var(--carb)"></i>C ${r0(m.c)} g</span><span><i style="background:var(--fat)"></i>F ${r0(m.f)} g</span></div>`;
+
+let toastT;
+function toast(msg,undo){const t=$('#toast');t.innerHTML='<span>'+esc(msg)+'</span>'+(undo?'<button id="undo">Undo</button>':'');t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),4500);if(undo)$('#undo').onclick=()=>{undo();t.classList.remove('on')}}
+const open=id=>$('#'+id).classList.add('on');
+const close=id=>$('#'+id).classList.remove('on');
+document.addEventListener('click',e=>{const c=e.target.closest('[data-close]');if(c)close(c.dataset.close)});
+$('#amt').addEventListener('click',e=>{if(e.target.id==='amt')close('amt')});
+$('#quick').addEventListener('click',e=>{if(e.target.id==='quick')close('quick')});
+
+/* ---------- views ---------- */
+let view='today';
+function show(v){view=v;document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));$('#fab').style.display=v==='today'?'':'none';render()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+function render(){if(view==='today')renderToday();if(view==='foods')renderFoods();if(view==='settings')renderSettings()}
+
+/* ---------- today ---------- */
+function renderToday(){
+  const d=new Date(day+'T12:00'),today=ymd(new Date());
+  $('#dlabel').textContent=day===today?'Today':day===shift(today,-1)?'Yesterday':d.toLocaleDateString(undefined,{weekday:'long'});
+  $('#dsub').textContent=d.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});
+  const es=S.log.filter(e=>e.date===day),T=sum(es.map(eM)),G=S.goals;
+  $('#kcal').textContent=r0(T.k).toLocaleString();
+  $('#kgoal').textContent=G.k?(T.k<=G.k?`${r0(G.k-T.k).toLocaleString()} left of ${G.k.toLocaleString()}`:`${r0(T.k-G.k).toLocaleString()} over ${G.k.toLocaleString()}`):(es.length?'Macro split by calories':'Nothing logged yet');
+  const ring=$('#ring');
+  if(G.k)ring.style.background=`conic-gradient(var(--kc) ${Math.min(100,T.k/G.k*100)}%, var(--line) 0)`;
+  else{const a=T.p*4,b=T.c*4,c=T.f*9,s=a+b+c;ring.style.background=s?`conic-gradient(var(--pro) 0 ${a/s*100}%, var(--carb) 0 ${(a+b)/s*100}%, var(--fat) 0)`:'var(--line)'}
+  const mx=Math.max(T.p,T.c,T.f,1);
+  $('#mrows').innerHTML=[['p','Protein','pro'],['c','Carbs','carb'],['f','Fat','fat']].map(([k,l,v])=>{const w=G[k]?Math.min(100,T[k]/G[k]*100):T[k]/mx*100;return `<div class="mrow"><span class="ml"><i style="background:var(--${v})"></i>${l}</span><span class="mv">${r0(T[k])}${G[k]?' / '+G[k]:''} g</span><div class="bar"><b style="width:${w}%;background:var(--${v})"></b></div></div>`}).join('');
+  const pd=shift(day,-1);
+  $('#meals').innerHTML=MEALS.map((m,i)=>{
+    const me=es.filter(e=>e.meal===i),t=sum(me.map(eM)),prev=S.log.some(e=>e.date===pd&&e.meal===i);
+    return `<section class="meal"><header><h3>${m}</h3><span class="mk">${me.length?r0(t.k)+' kcal':''}</span><button class="iconb" data-add="${i}" aria-label="Add to ${m}">+</button></header>`+
+    me.map(e=>{const x=eM(e);return `<button class="ent" data-e="${e.id}"><span class="en">${esc(e.food.name)}<small>${esc(qtyText(e.food,e.qty,e.u))}${e.food.brand?' · '+esc(e.food.brand):''}</small></span><span class="ek">${r0(x.k)}<small>P ${r0(x.p)} · C ${r0(x.c)} · F ${r0(x.f)}</small></span></button>`}).join('')+
+    (!me.length&&prev?`<button class="copy" data-copy="${i}">Copy ${m.toLowerCase()} from the day before</button>`:'')+`</section>`}).join('');
+}
+$('#prev').onclick=()=>{day=shift(day,-1);renderToday()};
+$('#next').onclick=()=>{day=shift(day,1);renderToday()};
+$('#meals').addEventListener('click',e=>{
+  const a=e.target.closest('[data-add]');if(a)return openSearch({t:'log',meal:+a.dataset.add});
+  const c=e.target.closest('[data-copy]');
+  if(c){const i=+c.dataset.copy,src=S.log.filter(x=>x.date===shift(day,-1)&&x.meal===i);const added=src.map(x=>({...JSON.parse(JSON.stringify(x)),id:uid(),date:day}));S.log.push(...added);save();renderToday();const ids=new Set(added.map(x=>x.id));return toast(`Copied ${added.length} item${added.length>1?'s':''}`,()=>{S.log=S.log.filter(x=>!ids.has(x.id));save();renderToday()})}
+  const en=e.target.closest('[data-e]');
+  if(en){const it=S.log.find(x=>x.id===en.dataset.e);if(it){mode={t:'log',meal:it.meal};openAmount(it.food,{qty:it.qty,u:it.u,meal:it.meal,entryId:it.id})}}
+});
+$('#fab').onclick=()=>openSearch({t:'log',meal:autoMeal()});
+
+/* ---------- search sheet ---------- */
+let mode={t:'log',meal:0},dbList=[],localList=[];
+function openSearch(m){mode=m;$('#stitle').textContent=m.t==='recipe'?'Add ingredient':'Add to '+MEALS[m.meal].toLowerCase();$('#quickbtn').textContent=m.t==='recipe'?'Custom ingredient':'Quick add';$('#q').value='';$('#dbres').innerHTML='';dbList=[];renderLocal();open('sheet');setTimeout(()=>$('#q').focus(),60)}
+function resRow(f,attr,qty,u){const un=unitOf(f,u||0);const m=macros(f,qty??1,u||0);return `<button class="res" ${attr}><span class="rn">${esc(f.name)}${f.kind==='homemade'?'<span class="tag">HOMEMADE</span>':''}<small>${esc([f.brand,SRC[f.src]].filter(Boolean).join(' · '))}</small></span><span class="rk">${r0(m.k)} kcal<small>${esc(qty!=null?qtyText(f,qty,u):'per '+(['g','oz','ml'].includes(un.l)?'1 '+un.l:un.l))}</small></span></button>`}
+function renderLocal(){
+  const q=$('#q').value.trim().toLowerCase();
+  const mine=S.foods.filter(f=>!q||(f.name+' '+(f.brand||'')).toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+  let rec=[];
+  if(!q&&mode.t==='log'){const seen=new Set();for(let i=S.log.length-1;i>=0&&rec.length<10;i--){const e=S.log[i],k=e.food.name+'|'+e.food.brand;if(!seen.has(k)&&e.food.src!=='quick'){seen.add(k);rec.push(e)}}}
+  localList=[];let h='';
+  if(rec.length){h+='<div class="grp">RECENT</div><div class="list">'+rec.map(e=>{localList.push({food:e.food,qty:e.qty,u:e.u});return resRow(e.food,`data-l="${localList.length-1}"`,e.qty,e.u)}).join('')+'</div>'}
+  if(mine.length){h+='<div class="grp">MY FOODS</div><div class="list">'+mine.map(f=>{localList.push({food:f});return resRow(f,`data-l="${localList.length-1}"`)}).join('')+'</div>'}
+  if(!S.foods.length&&!rec.length)h+='<p class="hint">Search a food and press Search to look it up in USDA and Open Food Facts. Star the ones you use often and they will show up here first.</p>';
+  else if(q)h+='<p class="hint">Press Search to look in USDA and Open Food Facts too.</p>';
+  $('#local').innerHTML=h;
+}
+$('#q').addEventListener('input',renderLocal);
+$('#local').addEventListener('click',e=>{const b=e.target.closest('[data-l]');if(!b)return;const it=localList[+b.dataset.l];openAmount(it.food,it.qty!=null?{qty:it.qty,u:it.u}:{})});
+$('#dbres').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(b)openAmount(dbList[+b.dataset.d])});
+$('#sform').addEventListener('submit',async e=>{e.preventDefault();const q=$('#q').value.trim();if(!q)return;$('#q').blur();if(/^\d{8,14}$/.test(q))return barcode(q);
+  $('#dbres').innerHTML='<p class="hint"><span class="spin"></span>Searching USDA and Open Food Facts</p>';
+  const [u,o]=await Promise.allSettled([usda(q),offSearch(q)]);
+  showDb([['USDA',u],['OPEN FOOD FACTS',o]]);
+});
+function showDb(groups){
+  dbList=[];let h='',fails=0,limit=false;
+  for(const[name,r]of groups){if(r.status!=='fulfilled'){fails++;if(String(r.reason).includes('429'))limit=true;continue}if(!r.value.length)continue;h+=`<div class="grp">${name}</div><div class="list">`+r.value.map(f=>{dbList.push(f);return resRow(f,`data-d="${dbList.length-1}"`)}).join('')+'</div>'}
+  if(limit)h='<p class="hint">The USDA demo key hit its hourly limit. Add your free key in Settings to remove it.</p>'+h;
+  if(fails===groups.length)h='<p class="hint">Could not reach the food databases. Check your connection. If you are previewing this inside Claude, database search switches on once the app is hosted on GitHub Pages.</p>';
+  else if(!dbList.length)h+='<p class="hint">No matches. Try fewer words, or add it yourself under My Foods.</p>';
+  $('#dbres').innerHTML=h;
+}
+
+/* ---------- databases ---------- */
+const titleCase=s=>s&&s===s.toUpperCase()?s.toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()):s;
+async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+function nut(fn,ids){for(const id of ids){const x=fn.find(n=>(n.nutrientId===id||n.nutrient?.id===id)&&String(n.unitName||n.nutrient?.unitName||'').toUpperCase()!=='KJ');const v=x&&(x.value??x.amount);if(v!=null)return v}return null}
+function fromUsda(f){
+  const fn=f.foodNutrients||[];const k=nut(fn,[1008,2047,2048]);if(k==null)return null;
+  const units=[{l:'g',m:1},{l:'oz',m:28.35}];
+  (f.foodMeasures||[]).filter(m=>m.gramWeight&&m.disseminationText&&!/not specified/i.test(m.disseminationText)).slice(0,4).reverse().forEach(m=>units.unshift({l:`${m.disseminationText} (${r0(m.gramWeight)} g)`,m:m.gramWeight}));
+  if(f.servingSize&&/^(g|grm|ml|mlt)$/i.test(f.servingSizeUnit||''))units.unshift({l:`serving (${r0(f.servingSize)} ${/^m/i.test(f.servingSizeUnit)?'ml':'g'})`,m:f.servingSize});
+  return{id:'usda'+f.fdcId,name:titleCase(f.description),brand:titleCase(f.brandName||f.brandOwner||''),kind:'product',src:'usda',n:{k:k/100,p:(nut(fn,[1003])||0)/100,c:(nut(fn,[1005])||0)/100,f:(nut(fn,[1004])||0)/100},units};
+}
+async function usda(q){const key=S.usdaKey||'DEMO_KEY';const j=await getJSON(`https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(key)}&query=${encodeURIComponent(q)}&pageSize=15&dataType=${encodeURIComponent('Foundation,SR Legacy,Survey (FNDDS),Branded')}`);return(j.foods||[]).map(fromUsda).filter(Boolean)}
+function fromOff(p){
+  const n=p.nutriments||{};let k=n['energy-kcal_100g'];if(k==null&&n.energy_100g!=null)k=n.energy_100g/4.184;
+  if(k==null||!p.product_name)return null;
+  const units=[{l:'g',m:1},{l:'oz',m:28.35}];const sq=parseFloat(p.serving_quantity);
+  if(sq>0)units.unshift({l:`serving (${p.serving_size||r0(sq)+' g'})`,m:sq});
+  return{id:'off'+p.code,name:p.product_name,brand:(p.brands||'').split(',')[0].trim(),kind:'product',src:'off',n:{k:k/100,p:num(n.proteins_100g)/100,c:num(n.carbohydrates_100g)/100,f:num(n.fat_100g)/100},units};
+}
+const OFF_FIELDS='code,product_name,brands,nutriments,serving_size,serving_quantity';
+async function offSearch(q){const j=await getJSON(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=15&fields=${OFF_FIELDS}`);return(j.products||[]).map(fromOff).filter(Boolean)}
+async function barcode(code){
+  $('#q').value=code;$('#dbres').innerHTML='<p class="hint"><span class="spin"></span>Looking up barcode '+esc(code)+'</p>';
+  try{const j=await getJSON(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${OFF_FIELDS}`);const f=j.status===1&&fromOff({...j.product,code});if(f){$('#dbres').innerHTML='';return openAmount(f)}}catch(e){}
+  try{const r=await usda(code);if(r.length){showDb([['USDA',{status:'fulfilled',value:r}]]);if(r.length===1)openAmount(r[0]);return}}catch(e){}
+  $('#dbres').innerHTML='<p class="hint">No product found for barcode '+esc(code)+'. You can add it yourself under My Foods.</p>';
+}
+
+/* ---------- barcode from photo ---------- */
+let zx;
+function loadZX(){return zx||(zx=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';s.onload=res;s.onerror=()=>{zx=null;rej()};document.head.appendChild(s)}))}
+async function decodePhoto(file){
+  const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file)});
+  if('BarcodeDetector'in window){try{const r=await new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']}).detect(img);if(r[0])return r[0].rawValue}catch(e){}}
+  await loadZX();
+  const reader=new ZXing.BrowserMultiFormatReader();
+  for(const max of [1400,900,2000]){const sc=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=img.naturalWidth*sc;c.height=img.naturalHeight*sc;c.getContext('2d').drawImage(img,0,0,c.width,c.height);try{return(await reader.decodeFromImageUrl(c.toDataURL('image/jpeg',.9))).getText()}catch(e){}}
+  return null;
+}
+$('#scan').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;$('#dbres').innerHTML='<p class="hint"><span class="spin"></span>Reading barcode</p>';
+  let code=null;try{code=await decodePhoto(f)}catch(err){}
+  if(code)barcode(code);else $('#dbres').innerHTML='<p class="hint">Could not read that barcode. Try again closer and in good light, or type the numbers under the bars into search.</p>'});
+
+/* ---------- amount picker ---------- */
+let pick=null;
+function openAmount(food,o={}){
+  const f=snap(food);const u=o.u??0;
+  pick={food:f,qty:o.qty??(unitOf(f,u).l==='g'?100:1),u,meal:o.meal??mode.meal??autoMeal(),entryId:o.entryId||null,ri:o.ri};
+  renderAmount();open('amt');
+}
+const inMine=f=>f.src==='mine'||S.foods.some(x=>x.id===f.id||x.srcId===f.id);
+function renderAmount(){
+  const p=pick,f=p.food,m=macros(f,p.qty,p.u),isLog=mode.t==='log';
+  const verb=p.entryId?'Save changes':p.ri!=null?'Update ingredient':isLog?'Add to '+MEALS[p.meal].toLowerCase():'Add ingredient';
+  $('#amtp').innerHTML=`<div class="ovh" style="padding:0 0 4px"><h3>${esc(f.name)}</h3><button class="round" data-close="amt" aria-label="Close">&#215;</button></div>
+  <div class="hint" style="margin-top:0">${esc([f.brand,SRC[f.src]].filter(Boolean).join(' · '))}</div>
+  <div class="row2"><div><label for="aq">Amount</label><input id="aq" type="number" inputmode="decimal" step="any" value="${fq(p.qty)}"></div><div><label for="au">Unit</label><select id="au">${f.units.map((x,i)=>`<option value="${i}"${i===p.u?' selected':''}>${esc(x.l)}</option>`).join('')}</select></div></div>
+  ${isLog&&p.ri==null?`<label>Meal</label><div class="seg" id="ameal">${MEALS.map((x,i)=>`<button data-m="${i}" class="${i===p.meal?'on':''}">${x}</button>`).join('')}</div>`:''}
+  <div class="big"><b id="ak">${r0(m.k)}</b><span>kcal</span></div><div id="apcf">${pcf(m)}</div>
+  <button class="btn wide" id="ago">${verb}</button>
+  ${f.src!=='quick'&&!inMine(f)?'<button class="btn ghost wide" id="astar">&#9734; Save to My Foods</button>':''}
+  ${p.entryId?'<button class="btn del wide" id="adel">Remove from log</button>':''}`;
+  const upd=()=>{p.qty=num($('#aq').value);p.u=+$('#au').value;const mm=macros(f,p.qty,p.u);$('#ak').textContent=r0(mm.k);$('#apcf').innerHTML=pcf(mm)};
+  $('#aq').oninput=upd;
+  $('#au').onchange=()=>{const old=unitOf(f,p.u).m*p.qty;p.u=+$('#au').value;const nu=unitOf(f,p.u);const conv=['g','oz','ml'].includes(nu.l);p.qty=conv?r1(old/nu.m):1;$('#aq').value=fq(p.qty);upd()};
+  const seg=$('#ameal');if(seg)seg.onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;p.meal=+b.dataset.m;renderAmount()};
+  $('#ago').onclick=commitAmount;
+  const st=$('#astar');if(st)st.onclick=()=>{S.foods.push({...snap(f),id:'f'+uid(),srcId:f.id});save();st.remove();toast('Saved to My Foods');renderLocal()};
+  const dl=$('#adel');if(dl)dl.onclick=()=>{const i=S.log.findIndex(x=>x.id===p.entryId);if(i<0)return;const [gone]=S.log.splice(i,1);save();close('amt');renderToday();toast('Removed '+gone.food.name,()=>{S.log.splice(i,0,gone);save();renderToday()})};
+}
+function commitAmount(){
+  const p=pick;p.qty=num($('#aq').value);if(!(p.qty>0))return $('#aq').focus();
+  if(mode.t==='recipe'){const it={food:p.food,qty:p.qty,u:p.u};if(p.ri!=null)rd.ingr[p.ri]=it;else rd.ingr.push(it);close('amt');close('sheet');renderRecipe();return}
+  if(p.entryId){const e=S.log.find(x=>x.id===p.entryId);Object.assign(e,{qty:p.qty,u:p.u,meal:p.meal})}
+  else S.log.push({id:uid(),date:day,meal:p.meal,qty:p.qty,u:p.u,food:p.food});
+  save();close('amt');close('sheet');renderToday();
+  if(!p.entryId)toast('Added '+p.food.name);
+}
+
+/* ---------- quick add ---------- */
+$('#quickbtn').onclick=()=>{['qn','qk','qp','qc','qf'].forEach(i=>$('#'+i).value='');$('#qtitle').textContent=mode.t==='recipe'?'Custom ingredient':'Quick add';$('#qgo').textContent=mode.t==='recipe'?'Add ingredient':'Add to '+MEALS[mode.meal].toLowerCase();open('quick');setTimeout(()=>$('#qk').focus(),60)};
+$('#qgo').onclick=()=>{const n={k:num($('#qk').value),p:num($('#qp').value),c:num($('#qc').value),f:num($('#qf').value)};if(!n.k&&!n.p&&!n.c&&!n.f)return $('#qk').focus();
+  const food={name:$('#qn').value.trim()||(mode.t==='recipe'?'Ingredient':'Quick add'),brand:'',kind:'product',src:'quick',n,units:[{l:mode.t==='recipe'?'portion':'entry',m:1}]};
+  close('quick');if(mode.t==='recipe'){rd.ingr.push({food,qty:1,u:0});close('sheet');renderRecipe()}
+  else{S.log.push({id:uid(),date:day,meal:mode.meal,qty:1,u:0,food});save();close('sheet');renderToday();toast('Added '+food.name)}};
+
+/* ---------- my foods ---------- */
+let fkind='all';
+$('#ffilter').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;fkind=b.dataset.k;document.querySelectorAll('#ffilter .chip').forEach(c=>c.classList.toggle('on',c===b));renderFoods()};
+$('#fq').oninput=()=>renderFoods();
+function renderFoods(){
+  const q=$('#fq').value.trim().toLowerCase();
+  const list=S.foods.filter(f=>(fkind==='all'||f.kind===fkind)&&(!q||(f.name+' '+(f.brand||'')).toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
+  $('#flist').innerHTML=list.length?'<div class="list">'+list.map(f=>resRow(f,`data-ef="${f.id}"`)).join('')+'</div>':`<div class="list"><p class="empty">${S.foods.length?'Nothing matches.':'No saved foods yet. Add the products you buy over and over, and your own homemade versions, and they will come up first when you log.'}</p></div>`;
+}
+$('#flist').addEventListener('click',e=>{const b=e.target.closest('[data-ef]');if(!b)return;const f=S.foods.find(x=>x.id===b.dataset.ef);if(f)f.kind==='homemade'?openRecipe(f):openProduct(f)});
+
+let pEdit=null;
+function openProduct(f){
+  pEdit=f||null;const u0=f?f.units[0]:null;const per=f?macros(f,1,0):null;
+  $('#petitle').textContent=f?'Edit product':'New product';
+  $('#pn').value=f?f.name:'';$('#pb').value=f?f.brand||'':'';
+  $('#ps').value=u0?u0.l:'';$('#pg').value=f&&f.servingG?f.servingG:'';
+  $('#pg').closest('div').style.display=f&&f.src!=='mine'?'none':'';
+  ['k','p','c','f'].forEach(k=>$('#p'+k).value=per?r1(per[k]):'');
+  $('#pdel').style.display=f?'':'none';open('pe');
+}
+$('#newprod').onclick=()=>openProduct(null);
+$('#psave').onclick=()=>{
+  const name=$('#pn').value.trim();if(!name)return $('#pn').focus();
+  const v={k:num($('#pk').value),p:num($('#pp').value),c:num($('#pc').value),f:num($('#pf').value)};
+  const label=$('#ps').value.trim()||'serving';
+  if(pEdit&&pEdit.src!=='mine'){const m0=pEdit.units[0].m;pEdit.name=name;pEdit.brand=$('#pb').value.trim();pEdit.units[0].l=label;pEdit.n={k:v.k/m0,p:v.p/m0,c:v.c/m0,f:v.f/m0}}
+  else{const g=num($('#pg').value);const units=[{l:label,m:1}];if(g>0)units.push({l:'g',m:1/g},{l:'oz',m:28.35/g});
+    const food={id:pEdit?pEdit.id:'f'+uid(),name,brand:$('#pb').value.trim(),kind:'product',src:'mine',servingG:g||'',n:v,units};
+    if(pEdit)Object.assign(pEdit,food);else S.foods.push(food)}
+  save();close('pe');renderFoods();toast('Saved '+name);
+};
+function delFood(f,from){const i=S.foods.indexOf(f);if(i<0)return;S.foods.splice(i,1);save();close(from);renderFoods();toast('Deleted '+f.name,()=>{S.foods.splice(i,0,f);save();renderFoods()})}
+$('#pdel').onclick=()=>delFood(pEdit,'pe');
+
+/* ---------- homemade recipes ---------- */
+let rd=null;
+function openRecipe(f){
+  rd=f?{ref:f,name:f.name,servings:f.servings||1,batchG:f.batchG||'',ingr:JSON.parse(JSON.stringify(f.ingr||[]))}:{ref:null,name:'',servings:1,batchG:'',ingr:[]};
+  $('#retitle').textContent=f?'Edit homemade':'New homemade';$('#rn').value=rd.name;$('#rs').value=rd.servings;$('#rg').value=rd.batchG;
+  $('#rdel').style.display=f?'':'none';renderRecipe();open('re');
+}
+$('#newrec').onclick=()=>openRecipe(null);
+function renderRecipe(){
+  $('#ringr').innerHTML=rd.ingr.length?rd.ingr.map((it,i)=>{const m=macros(it.food,it.qty,it.u);return `<div class="ing"><button class="n" data-ri="${i}">${esc(it.food.name)}<small>${esc(qtyText(it.food,it.qty,it.u))} · ${r0(m.k)} kcal</small></button><button class="x" data-rx="${i}" aria-label="Remove ${esc(it.food.name)}">&#215;</button></div>`}).join(''):'<p class="empty">Add each ingredient with the amount you use for the whole batch.</p>';
+  const T=sum(rd.ingr.map(it=>macros(it.food,it.qty,it.u))),sv=num($('#rs').value)||1;
+  const P={k:T.k/sv,p:T.p/sv,c:T.c/sv,f:T.f/sv};
+  $('#rtot').innerHTML=`<h3>Per serving</h3><div class="big" style="margin-top:6px"><b>${r0(P.k)}</b><span>kcal</span></div>${pcf(P)}<p style="margin-top:8px">Whole batch: ${r0(T.k).toLocaleString()} kcal, P ${r0(T.p)} g, C ${r0(T.c)} g, F ${r0(T.f)} g</p>`;
+}
+$('#rs').oninput=renderRecipe;
+$('#ringr').addEventListener('click',e=>{const x=e.target.closest('[data-rx]');if(x){rd.ingr.splice(+x.dataset.rx,1);return renderRecipe()}
+  const b=e.target.closest('[data-ri]');if(b){const i=+b.dataset.ri,it=rd.ingr[i];mode={t:'recipe'};openAmount(it.food,{qty:it.qty,u:it.u,ri:i})}});
+$('#raddi').onclick=()=>openSearch({t:'recipe'});
+$('#rsave').onclick=()=>{
+  const name=$('#rn').value.trim();if(!name)return $('#rn').focus();
+  if(!rd.ingr.length)return toast('Add at least one ingredient');
+  const sv=num($('#rs').value)||1,bg=num($('#rg').value);
+  const T=sum(rd.ingr.map(it=>macros(it.food,it.qty,it.u)));
+  const units=[{l:'serving',m:1}];if(bg>0)units.push({l:'g',m:sv/bg},{l:'oz',m:28.35*sv/bg});
+  const food={id:rd.ref?rd.ref.id:'f'+uid(),name,brand:'',kind:'homemade',src:'mine',servings:sv,batchG:bg||'',ingr:rd.ingr,n:{k:T.k/sv,p:T.p/sv,c:T.c/sv,f:T.f/sv},units};
+  if(rd.ref)Object.assign(rd.ref,food);else S.foods.push(food);
+  save();close('re');renderFoods();toast('Saved '+name);
+};
+$('#rdel').onclick=()=>delFood(rd.ref,'re');
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  const G=S.goals;$('#gk').value=G.k||'';$('#gp').value=G.p||'';$('#gc').value=G.c||'';$('#gf').value=G.f||'';$('#ukey').value=S.usdaKey||'';
+  const days=new Set(S.log.map(e=>e.date)).size;
+  $('#bstat').textContent=`${S.foods.length} saved food${S.foods.length===1?'':'s'} and ${S.log.length} log entr${S.log.length===1?'y':'ies'} across ${days} day${days===1?'':'s'}. Your data lives in this browser, so download a backup now and then.`;
+}
+[['gk','k'],['gp','p'],['gc','c'],['gf','f']].forEach(([id,k])=>$('#'+id).oninput=e=>{S.goals[k]=r0(num(e.target.value));save()});
+$('#ukey').oninput=e=>{S.usdaKey=e.target.value.trim();save()};
+const backup=()=>JSON.stringify({app:'morsel',version:1,saved:new Date().toISOString(),...S},null,1);
+$('#bdl').onclick=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([backup()],{type:'application/json'}));a.download=`morsel-backup-${ymd(new Date())}.json`;document.body.appendChild(a);a.click();a.remove();toast('Backup downloaded')}catch(e){toast('Download blocked here. Use Copy backup instead.')}};
+$('#bcp').onclick=async()=>{try{await navigator.clipboard.writeText(backup());toast('Backup copied. Paste it into a note or email to yourself.')}catch(e){toast('Copy was blocked')}};
+$('#bin').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const d=JSON.parse(await f.text());if(!Array.isArray(d.foods)||!Array.isArray(d.log))throw 0;const old=S;S=Object.assign(blank(),{foods:d.foods,log:d.log,goals:d.goals||old.goals,usdaKey:d.usdaKey||old.usdaKey});save();renderSettings();toast('Backup restored',()=>{S=old;save();renderSettings()})}
+  catch(err){toast('That file is not a Morsel backup')}});
+
+show('today');
+}
+</script>
+</body>
+</html>
